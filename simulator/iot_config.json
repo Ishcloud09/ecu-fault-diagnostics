@@ -1,0 +1,9 @@
+{
+  "endpoint": "a2a6ltgfqidjmb-ats.iot.eu-west-2.amazonaws.com",
+  "port": 8883,
+  "topic": "ecu/faults",
+  "client_id": "simulated-ecu-01",
+  "cert_path": "simulator/certs/device.pem.crt",
+  "key_path": "simulator/certs/private.pem.key",
+  "ca_path": "simulator/certs/AmazonRootCA1.pem"
+}

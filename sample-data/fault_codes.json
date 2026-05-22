@@ -1,0 +1,12 @@
+[
+  {"code":"P0300","description":"Random/Multiple Cylinder Misfire","severity":"High","component":"Engine","likely_cause":"Spark plugs, ignition coil, or fuel injector fault"},
+  {"code":"P0115","description":"Engine Coolant Temp Sensor Circuit","severity":"Medium","component":"Cooling System","likely_cause":"Sensor failure or wiring fault"},
+  {"code":"P0562","description":"System Voltage Low","severity":"High","component":"Battery/Alternator","likely_cause":"Failing alternator or battery drain"},
+  {"code":"U0100","description":"Lost Communication With ECM/PCM","severity":"Critical","component":"CAN Bus","likely_cause":"Wiring fault, ECU failure, or CAN bus corruption"},
+  {"code":"P0171","description":"System Too Lean Bank 1","severity":"Medium","component":"Fuel System","likely_cause":"Vacuum leak or faulty MAF sensor"},
+  {"code":"P0420","description":"Catalyst System Efficiency Below Threshold","severity":"Low","component":"Exhaust/Catalytic Converter","likely_cause":"Failing catalytic converter or O2 sensor"},
+  {"code":"P0700","description":"Transmission Control System Fault","severity":"High","component":"Transmission","likely_cause":"TCM fault or solenoid failure"},
+  {"code":"B0001","description":"Airbag Deployment Loop Fault","severity":"Critical","component":"SRS/Airbag","likely_cause":"Wiring fault in airbag circuit"},
+  {"code":"C0035","description":"Left Front Wheel Speed Sensor Fault","severity":"High","component":"ABS/Brakes","likely_cause":"Sensor failure or tone ring damage"},
+  {"code":"U0155","description":"Lost Communication With Instrument Panel","severity":"Medium","component":"CAN Bus","likely_cause":"Wiring fault or IPC module failure"}
+]

@@ -1,0 +1,12 @@
+[
+  {"timestamp":"2026-05-18T06:00:01Z","message_id":100,"RPM":2450,"coolant_temp_c":88.0,"battery_voltage":13.8,"fault_active":false},
+  {"timestamp":"2026-05-18T06:00:03Z","message_id":200,"dtc_code":"P0300","severity":"High","fault_active":true},
+  {"timestamp":"2026-05-18T06:00:05Z","message_id":100,"RPM":890,"coolant_temp_c":112.0,"battery_voltage":11.2,"fault_active":false},
+  {"timestamp":"2026-05-18T06:00:07Z","message_id":200,"dtc_code":"P0562","severity":"High","fault_active":true},
+  {"timestamp":"2026-05-18T06:00:09Z","message_id":100,"RPM":3200,"coolant_temp_c":92.5,"battery_voltage":14.1,"fault_active":false},
+  {"timestamp":"2026-05-18T06:00:11Z","message_id":200,"dtc_code":"U0100","severity":"Critical","fault_active":true},
+  {"timestamp":"2026-05-18T06:00:13Z","message_id":100,"RPM":1200,"coolant_temp_c":78.0,"battery_voltage":12.9,"fault_active":false},
+  {"timestamp":"2026-05-18T06:00:15Z","message_id":200,"dtc_code":"P0171","severity":"Medium","fault_active":true},
+  {"timestamp":"2026-05-18T06:00:17Z","message_id":100,"RPM":4000,"coolant_temp_c":105.0,"battery_voltage":13.2,"fault_active":false},
+  {"timestamp":"2026-05-18T06:00:19Z","message_id":200,"dtc_code":"P0115","severity":"Medium","fault_active":true}
+]

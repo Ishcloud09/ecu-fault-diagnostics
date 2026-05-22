@@ -1,0 +1,30 @@
+# Virtual environment — never commit this
+venv/
+
+# Python cache files — auto-generated, not needed
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment variables — contains your secret API keys
+.env
+
+# AWS IoT certificates — never commit these
+certs/
+*.pem
+*.key
+*.crt
+*.sig
+
+# Terraform state — contains infrastructure secrets
+terraform/.terraform/
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+*.tfvars
+
+# Mac system file
+.DS_Store
+
+# Windows system file
+Thumbs.db

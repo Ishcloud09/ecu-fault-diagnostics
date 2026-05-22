@@ -1,0 +1,15 @@
+{
+  "fault_id": "FAULT-20260518172326-206",
+  "timestamp": "2026-05-18T17:23:26.199341+00:00",
+  "vehicle_id": "VH-SIM-001",
+  "dtc_code": "P0300",
+  "description": "Random Cylinder Misfire",
+  "severity": "High",
+  "sensor_data": {
+    "RPM": 1574,
+    "coolant_temp_c": 116.4,
+    "battery_voltage": 12.55
+  },
+  "processed_at": "2026-05-18T17:23:26.891000+00:00",
+  "ai_diagnosis": "PENDING"
+}
