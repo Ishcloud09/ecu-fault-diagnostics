@@ -45,13 +45,14 @@ AWS CloudWatch + SNS  →  Pipeline monitoring + email alerts
 | Monitoring | AWS CloudWatch + SNS Alerts |
 
 ## Pipeline Status
+## Pipeline Status
 ✅ Phase 1 — CAN simulator generating realistic fault data  
 ✅ Phase 2 — AWS IoT Core receiving messages via MQTT/TLS  
 ✅ Phase 3 — Lambda processing and storing fault records  
-✅ Phase 4 — DynamoDB storing 195+ fault records  
+✅ Phase 4 — DynamoDB storing 200+ fault records  
 ✅ Phase 5 — CloudWatch monitoring with email alerts  
-🔧 Phase 6 — AI classification layer (in progress)  
-⏳ Phase 7 — Terraform IaC + GitHub Actions CI/CD  
+✅ Phase 6 — AI classification layer (mock mode — structured diagnosis active)  
+⏳ Phase 7 — Terraform IaC + GitHub Actions CI/CD
 
 ## Sample Fault Record
 ```json
