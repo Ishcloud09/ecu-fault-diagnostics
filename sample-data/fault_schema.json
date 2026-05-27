@@ -1,15 +1,23 @@
 {
-  "fault_id": "FAULT-20260518172326-206",
-  "timestamp": "2026-05-18T17:23:26.199341+00:00",
+  "fault_id": "FAULT-20260527005751-124",
+  "timestamp": "2026-05-27T00:57:51.550109+00:00",
   "vehicle_id": "VH-SIM-001",
-  "dtc_code": "P0300",
-  "description": "Random Cylinder Misfire",
-  "severity": "High",
+  "dtc_code": "P0115",
+  "description": "Engine Coolant Temp Sensor Fault",
+  "severity": "Medium",
   "sensor_data": {
-    "RPM": 1574,
-    "coolant_temp_c": 116.4,
-    "battery_voltage": 12.55
+    "RPM": 892,
+    "coolant_temp_c": 78.6,
+    "battery_voltage": 11.74
   },
-  "processed_at": "2026-05-18T17:23:26.891000+00:00",
-  "ai_diagnosis": "PENDING"
+  "processed_at": "2026-05-27T00:57:51.891519+00:00",
+  "ai_diagnosis": {
+    "root_cause": "Engine coolant temperature sensor circuit fault. Sensor reading outside expected range — either sensor has failed or wiring harness has a fault.",
+    "immediate_action": "Monitor engine temperature via dashboard gauge. If gauge shows overheating, stop vehicle immediately.",
+    "long_term_fix": "Replace coolant temperature sensor. Inspect wiring harness for chafing or corrosion.",
+    "safety_risk": "Medium",
+    "confidence": "High",
+    "mode": "MOCK"
+  },
+  "pipeline_latency_ms": 341
 }

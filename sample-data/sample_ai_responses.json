@@ -1,0 +1,59 @@
+[
+  {
+    "dtc_code": "P0115",
+    "fault_description": "Engine Coolant Temp Sensor Fault",
+    "severity": "Medium",
+    "sensor_context": {
+      "RPM": 892,
+      "coolant_temp_c": 78.6,
+      "battery_voltage": 11.74
+    },
+    "ai_diagnosis": {
+      "root_cause": "Engine coolant temperature sensor circuit fault. Sensor reading outside expected range — either sensor has failed or wiring harness has a fault. ECU cannot accurately determine engine temperature, affecting fuel mixture calculations.",
+      "immediate_action": "Monitor engine temperature via dashboard gauge. If gauge shows overheating, stop vehicle immediately. Avoid extended highway driving until sensor is replaced.",
+      "long_term_fix": "Replace coolant temperature sensor. Inspect wiring harness for chafing or corrosion at connector. Clear fault code and verify sensor reads within normal range after replacement.",
+      "safety_risk": "Medium",
+      "confidence": "High",
+      "mode": "MOCK"
+    },
+    "pipeline_latency_ms": 341
+  },
+  {
+    "dtc_code": "P0300",
+    "fault_description": "Random Cylinder Misfire",
+    "severity": "High",
+    "sensor_context": {
+      "RPM": 1574,
+      "coolant_temp_c": 116.4,
+      "battery_voltage": 12.55
+    },
+    "ai_diagnosis": {
+      "root_cause": "Random cylinder misfire detected. Low battery voltage combined with high coolant temperature is destabilising the ignition system. Most likely cause: failing alternator unable to maintain charge under thermal load.",
+      "immediate_action": "Reduce engine load immediately. Avoid high RPM driving. Schedule workshop inspection within 48 hours. Do not drive on motorway until voltage issue resolved.",
+      "long_term_fix": "Test alternator output voltage at operating temperature. Replace alternator if output below 13.5V. Inspect cooling system for thermostat failure.",
+      "safety_risk": "High",
+      "confidence": "High",
+      "mode": "MOCK"
+    },
+    "pipeline_latency_ms": 287
+  },
+  {
+    "dtc_code": "U0100",
+    "fault_description": "Lost Communication With ECM",
+    "severity": "Critical",
+    "sensor_context": {
+      "RPM": 0,
+      "coolant_temp_c": 92.0,
+      "battery_voltage": 11.9
+    },
+    "ai_diagnosis": {
+      "root_cause": "Lost CAN bus communication with Engine Control Module. Critical network fault — ECM has powered down unexpectedly or CAN bus wiring has failed. Multiple vehicle safety systems affected.",
+      "immediate_action": "Stop vehicle safely immediately. Do not attempt restart without professional diagnosis. Multiple safety systems may be impaired. Call for recovery.",
+      "long_term_fix": "Inspect CAN bus wiring harness at ECM connector. Check termination resistors (60 ohms between CAN-H and CAN-L). Verify ECM power supply and ground connections.",
+      "safety_risk": "Critical",
+      "confidence": "Medium",
+      "mode": "MOCK"
+    },
+    "pipeline_latency_ms": 312
+  }
+]
