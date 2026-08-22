@@ -19,47 +19,47 @@ def convert_floats(obj):
         return [convert_floats(i) for i in obj]
     return obj
 
+def process_fault(fault_data):
+    from ai_classifier import classify_fault
+
+    ai_diagnosis = classify_fault(fault_data)
+
+    record = {
+        'fault_id':     fault_data.get('fault_id', 'UNKNOWN'),
+        'timestamp':    fault_data.get('timestamp',
+                        datetime.now(timezone.utc).isoformat()),
+        'vehicle_id':   fault_data.get('vehicle_id', 'UNKNOWN'),
+        'dtc_code':     fault_data.get('dtc_code', 'UNKNOWN'),
+        'description':  fault_data.get('description', 'UNKNOWN'),
+        'severity':     fault_data.get('severity', 'UNKNOWN'),
+        'sensor_data':  convert_floats(fault_data.get('sensor_data', {})),
+        'processed_at': datetime.now(timezone.utc).isoformat(),
+        'ai_diagnosis': convert_floats(ai_diagnosis)
+    }
+
+    table.put_item(Item=record)
+    print(f"Stored: {record['fault_id']} — {record['dtc_code']}")
+
 def handler(event, context):
-    print(f"Received event: {json.dumps(event)}")
-    
-    try:
-        # ── Step 1: Import AI classifier
-        from ai_classifier import classify_fault
-        
-        # ── Step 2: Get AI diagnosis
-        print(f"Calling AI classifier for fault: {event.get('dtc_code')}")
-        ai_diagnosis = classify_fault(event)
-        print(f"AI diagnosis received: {ai_diagnosis.get('safety_risk')} risk")
-        
-        # ── Step 3: Build complete record
-        record = {
-            'fault_id':     event.get('fault_id', 'UNKNOWN'),
-            'timestamp':    event.get('timestamp', datetime.now(timezone.utc).isoformat()),
-            'vehicle_id':   event.get('vehicle_id', 'UNKNOWN'),
-            'dtc_code':     event.get('dtc_code', 'UNKNOWN'),
-            'description':  event.get('description', 'UNKNOWN'),
-            'severity':     event.get('severity', 'UNKNOWN'),
-            'sensor_data':  convert_floats(event.get('sensor_data', {})),
-            'processed_at': datetime.now(timezone.utc).isoformat(),
-            'ai_diagnosis': convert_floats(ai_diagnosis)
-        }
-        
-        # ── Step 4: Store in DynamoDB
-        table.put_item(Item=record)
-        
-        print(f"Stored: {record['fault_id']} — {record['dtc_code']} — Risk: {ai_diagnosis.get('safety_risk')}")
-        
-        return {
-            'statusCode': 200,
-            'body': json.dumps({
-                'message': 'Fault stored with AI diagnosis',
-                'fault_id': record['fault_id'],
-                'dtc_code': record['dtc_code'],
-                'safety_risk': ai_diagnosis.get('safety_risk'),
-                'mode': ai_diagnosis.get('mode')
-            })
-        }
-        
-    except Exception as e:
-        print(f"Error: {str(e)}")
-        raise e
+    # SQS delivers messages in batches via Records array
+    records = event.get('Records', [])
+    print(f"Received {len(records)} record(s) from SQS")
+
+    for record in records:
+        try:
+            # Unwrap SQS — body contains the original IoT fault message
+            fault_data = json.loads(record['body'])
+            print(f"Processing: {fault_data.get('dtc_code')} "
+                  f"from {fault_data.get('vehicle_id')}")
+            process_fault(fault_data)
+
+        except Exception as e:
+            print(f"Error processing record: {str(e)}")
+            raise e  # re-raise so SQS knows to retry this message
+
+    return {
+        'statusCode': 200,
+        'body': json.dumps({
+            'message': f'Processed {len(records)} fault(s)'
+        })
+    }

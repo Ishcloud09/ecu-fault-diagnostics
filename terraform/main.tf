@@ -37,21 +37,78 @@ resource "aws_dynamodb_table" "fault_history" {
   }
 }
 
+# ── SQS DEAD LETTER QUEUE ──
+resource "aws_sqs_queue" "fault_dlq" {
+  name                      = "${var.project_name}-fault-dlq"
+  message_retention_seconds = 86400
+
+  tags = {
+    Project   = var.project_name
+    ManagedBy = "terraform"
+  }
+}
+
+# ── SQS MAIN FAULT QUEUE ──
+resource "aws_sqs_queue" "fault_queue" {
+  name                       = "${var.project_name}-fault-queue"
+  visibility_timeout_seconds = 35
+  message_retention_seconds  = 86400
+
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.fault_dlq.arn
+    maxReceiveCount     = 3
+  })
+
+  tags = {
+    Project   = var.project_name
+    ManagedBy = "terraform"
+  }
+}
+
+# ── IAM ROLE FOR IOT → SQS ──
+resource "aws_iam_role" "iot_sqs_role" {
+  name = "${var.project_name}-iot-sqs-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "iot.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+
+  tags = {
+    Project   = var.project_name
+    ManagedBy = "terraform"
+  }
+}
+
+resource "aws_iam_role_policy" "iot_sqs_policy" {
+  name = "${var.project_name}-iot-sqs-policy"
+  role = aws_iam_role.iot_sqs_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "sqs:SendMessage"
+      Resource = aws_sqs_queue.fault_queue.arn
+    }]
+  })
+}
+
 # ── IAM ROLE FOR LAMBDA ──
 resource "aws_iam_role" "lambda_role" {
   name = "${var.project_name}-lambda-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "lambda.amazonaws.com"
-        }
-      }
-    ]
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
   })
 
   tags = {
@@ -79,6 +136,16 @@ resource "aws_iam_role_policy" "lambda_policy" {
           "dynamodb:Scan"
         ]
         Resource = aws_dynamodb_table.fault_history.arn
+      },
+      {
+        Sid    = "SQSAccess"
+        Effect = "Allow"
+        Action = [
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes"
+        ]
+        Resource = aws_sqs_queue.fault_queue.arn
       },
       {
         Sid    = "CloudWatchLogs"
@@ -119,9 +186,9 @@ resource "aws_lambda_function" "fault_processor" {
 
   environment {
     variables = {
-      DYNAMODB_TABLE = var.dynamodb_table_name
+      DYNAMODB_TABLE  = var.dynamodb_table_name
       AWS_REGION_NAME = var.aws_region
-      MOCK_MODE      = "true"
+      MOCK_MODE       = "true"
     }
   }
 
@@ -129,6 +196,14 @@ resource "aws_lambda_function" "fault_processor" {
     Project   = var.project_name
     ManagedBy = "terraform"
   }
+}
+
+# ── LAMBDA READS FROM SQS ──
+resource "aws_lambda_event_source_mapping" "sqs_trigger" {
+  event_source_arn = aws_sqs_queue.fault_queue.arn
+  function_name    = aws_lambda_function.fault_processor.arn
+  batch_size       = 10
+  enabled          = true
 }
 
 # ── IOT POLICY ──
@@ -139,23 +214,23 @@ resource "aws_iot_policy" "ecu_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect = "Allow"
-        Action = "iot:Connect"
+        Effect   = "Allow"
+        Action   = "iot:Connect"
         Resource = "arn:aws:iot:${var.aws_region}:*:client/${var.iot_thing_name}"
       },
       {
-        Effect = "Allow"
-        Action = "iot:Publish"
+        Effect   = "Allow"
+        Action   = "iot:Publish"
         Resource = "arn:aws:iot:${var.aws_region}:*:topic/ecu/faults"
       },
       {
-        Effect = "Allow"
-        Action = "iot:Subscribe"
+        Effect   = "Allow"
+        Action   = "iot:Subscribe"
         Resource = "arn:aws:iot:${var.aws_region}:*:topicfilter/ecu/faults"
       },
       {
-        Effect = "Allow"
-        Action = "iot:Receive"
+        Effect   = "Allow"
+        Action   = "iot:Receive"
         Resource = "arn:aws:iot:${var.aws_region}:*:topic/ecu/faults"
       }
     ]
@@ -172,15 +247,17 @@ resource "aws_iot_thing" "simulated_ecu" {
   }
 }
 
-# ── IOT RULE → LAMBDA ──
+# ── IOT RULE → SQS ──
 resource "aws_iot_topic_rule" "fault_rule" {
   name        = "ProcessECUFault"
   enabled     = true
   sql         = "SELECT * FROM 'ecu/faults'"
   sql_version = "2016-03-23"
 
-  lambda {
-    function_arn = aws_lambda_function.fault_processor.arn
+  sqs {
+    queue_url  = aws_sqs_queue.fault_queue.url
+    role_arn   = aws_iam_role.iot_sqs_role.arn
+    use_base64 = false
   }
 
   tags = {
@@ -189,16 +266,7 @@ resource "aws_iot_topic_rule" "fault_rule" {
   }
 }
 
-# ── LAMBDA PERMISSION FOR IOT ──
-resource "aws_lambda_permission" "iot_invoke" {
-  statement_id  = "AllowIoTInvoke"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.fault_processor.function_name
-  principal     = "iot.amazonaws.com"
-  source_arn    = aws_iot_topic_rule.fault_rule.arn
-}
-
-# ── CLOUDWATCH ALARM ──
+# ── CLOUDWATCH ALARM — LAMBDA ERRORS ──
 resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
   alarm_name          = "ECU-Lambda-Error-Alert"
   comparison_operator = "GreaterThanThreshold"
@@ -212,6 +280,28 @@ resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
 
   dimensions = {
     FunctionName = var.lambda_function_name
+  }
+
+  tags = {
+    Project   = var.project_name
+    ManagedBy = "terraform"
+  }
+}
+
+# ── CLOUDWATCH ALARM — DLQ MESSAGES ──
+resource "aws_cloudwatch_metric_alarm" "dlq_messages" {
+  alarm_name          = "ECU-DLQ-Messages-Alert"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "ApproximateNumberOfMessagesVisible"
+  namespace           = "AWS/SQS"
+  period              = "300"
+  statistic           = "Sum"
+  threshold           = "0"
+  alarm_description   = "Faults landing in DLQ after 3 failed retries"
+
+  dimensions = {
+    QueueName = aws_sqs_queue.fault_dlq.name
   }
 
   tags = {
