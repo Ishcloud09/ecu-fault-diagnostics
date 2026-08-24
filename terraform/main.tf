@@ -415,3 +415,33 @@ resource "aws_iam_role_policy_attachment" "lambda_vpc" {
   role       = aws_iam_role.lambda_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
+
+# ── DYNAMODB VPC ENDPOINT (Gateway — free, keeps DynamoDB traffic off NAT) ──
+resource "aws_vpc_endpoint" "dynamodb" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.aws_region}.dynamodb"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.private.id]
+
+  tags = {
+    Name      = "${var.project_name}-dynamodb-endpoint"
+    Project   = var.project_name
+    ManagedBy = "terraform"
+  }
+}
+
+# ── SQS VPC ENDPOINT (Interface — keeps SQS traffic off NAT) ──
+resource "aws_vpc_endpoint" "sqs" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.aws_region}.sqs"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [aws_subnet.private_a.id, aws_subnet.private_b.id]
+  security_group_ids  = [aws_security_group.lambda_sg.id]
+  private_dns_enabled = true
+
+  tags = {
+    Name      = "${var.project_name}-sqs-endpoint"
+    Project   = var.project_name
+    ManagedBy = "terraform"
+  }
+}
