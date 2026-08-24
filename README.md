@@ -59,7 +59,7 @@ flowchart TD
 | Serverless Processing | AWS Lambda (Python 3.11) |
 | AI Fault Classification | Claude API / Mock mode |
 | Fault History Storage | AWS DynamoDB (on-demand) |
-| Infrastructure as Code | Terraform |
+| Infrastructure as Code | Terraform + S3 remote state |
 | CI/CD Pipeline | GitHub Actions |
 | Monitoring | AWS CloudWatch + SNS email alerts |
 
@@ -74,10 +74,10 @@ flowchart TD
 ✅ Phase 5 — DynamoDB storing 365+ fault records with AI diagnosis  
 ✅ Phase 6 — CloudWatch monitoring Lambda errors + DLQ depth  
 ✅ Phase 7 — AI classification layer (structured diagnosis active)  
-✅ Phase 8 — Terraform IaC — 15 resources managed as code  
+✅ Phase 8 — Terraform IaC — 15 resources + remote state in S3 with DynamoDB locking  
 ✅ Phase 9 — Lambda in private VPC subnet (eu-west-2a + eu-west-2b)  
 ✅ Phase 10 — VPC Endpoints — DynamoDB + SQS traffic stays off NAT Gateway  
-✅ Phase 11 — GitHub Actions CI/CD — auto-deploy on push (43s)
+✅ Phase 11 — GitHub Actions CI/CD — auto-deploy on push (47s)  
 
 ---
 
@@ -97,22 +97,15 @@ SQS solves this at three levels:
 
 ## Why VPC Endpoints Instead of NAT Gateway for AWS Services
 
-Lambda runs inside a private VPC subnet with no direct internet access.
-Without VPC Endpoints, all traffic — including calls to DynamoDB and SQS —
-would route through the NAT Gateway to the public internet and back into AWS.
+Lambda runs inside a private VPC subnet with no direct internet access. Without VPC Endpoints, all traffic — including calls to DynamoDB and SQS — would route through the NAT Gateway to the public internet and back into AWS.
 
 Two VPC Endpoints solve this:
 
-**DynamoDB Gateway Endpoint (free)** — routes DynamoDB traffic directly
-through AWS's private network. No NAT Gateway charges, lower latency,
-traffic never touches the public internet.
+**DynamoDB Gateway Endpoint (free)** — routes DynamoDB traffic directly through AWS's private network. No NAT Gateway charges, lower latency, traffic never touches the public internet.
 
-**SQS Interface Endpoint (~$7/month)** — creates a private IP inside the
-VPC for SQS. Queue traffic stays entirely within AWS's network.
+**SQS Interface Endpoint** — creates a private IP inside the VPC for SQS. Queue traffic stays entirely within AWS's network.
 
-NAT Gateway now handles only what genuinely needs internet access —
-the Claude API calls. This is the production-correct architecture:
-pay for internet access only when you actually need it.
+NAT Gateway now handles only what genuinely needs internet access — the Claude API calls. This is the production-correct architecture: pay for internet access only when you actually need it.
 
 ---
 
@@ -148,7 +141,7 @@ pay for internet access only when you actually need it.
 ## Key Engineering Decisions
 
 **Why SQS between IoT Core and Lambda?**
-Direct IoT→Lambda invocation cannot handle fleet-scale burst traffic without message loss. SQS decouples ingestion from processing — messages queue durably, Lambda drains at a sustainable rate, and the DLQ catches anything that fails after 3 retries. This is the production pattern used by Microlise, Samsara, and Trakm8 for fleet telemetry ingestion.
+Direct IoT to Lambda invocation cannot handle fleet-scale burst traffic without message loss. SQS decouples ingestion from processing — messages queue durably, Lambda drains at a sustainable rate, and the DLQ catches anything that fails after 3 retries. This is the production pattern used by Microlise, Samsara, and Trakm8 for fleet telemetry ingestion.
 
 **Why MQTT over HTTP?**
 MQTT is the industry standard protocol for IoT device messaging — designed for low-bandwidth, unreliable networks exactly like vehicle telematics. 2-byte fixed header vs kilobytes of HTTP overhead. Persistent connection vs request-response. QoS delivery guarantees.
@@ -159,8 +152,8 @@ ECU fault events are bursty — high volume during vehicle operation, zero durin
 **Why DynamoDB over SQL?**
 Fault records have variable fields — different DTCs carry different metadata. DynamoDB's schemaless design accommodates this naturally without nullable columns or schema migrations.
 
-**Why Terraform?**
-13 AWS resources reproducible from a single `terraform apply`. Proves infrastructure is code — not dependent on manual console clicks. Demonstrated by destroying and rebuilding entire stack from scratch.
+**Why Terraform with remote state?**
+15 AWS resources reproducible from a single `terraform apply`. State stored in S3 with DynamoDB locking — not on a local machine, safe for team use and disaster recovery. Proves infrastructure is code — not dependent on manual console clicks.
 
 ---
 
@@ -214,7 +207,7 @@ Watch fault messages publish every 5 seconds. Messages flow through IoT Core →
 
 ## Infrastructure as Code
 
-Provision entire AWS infrastructure from scratch (13 resources):
+Provision entire AWS infrastructure from scratch (15 resources):
 
 ```bash
 cd terraform
@@ -230,6 +223,22 @@ terraform destroy
 terraform apply
 ```
 
+### Remote State
+
+Terraform state stored remotely in S3 with DynamoDB locking — not on local machine.
+
+```hcl
+backend "s3" {
+  bucket         = "ecu-diagnostics-tfstate-831635639269"
+  key            = "p1/terraform.tfstate"
+  region         = "eu-west-2"
+  dynamodb_table = "terraform-state-lock"
+  encrypt        = true
+}
+```
+
+State versioning enabled — S3 bucket versioning allows rollback to any previous infrastructure state.
+
 ---
 
 ## CI/CD Pipeline
@@ -238,7 +247,7 @@ Every push to `main` automatically:
 1. Packages Lambda function into deployment zip
 2. Deploys to AWS Lambda in eu-west-2
 3. Runs `terraform validate` and `terraform plan`
-4. Completes in under 34 seconds
+4. Completes in under 50 seconds
 
 See `.github/workflows/deploy.yml` for full pipeline definition.
 
@@ -250,7 +259,29 @@ Built to demonstrate the embedded + cloud + AI intersection relevant to connecte
 
 All infrastructure on AWS free tier. No physical hardware required — everything simulated in Python.
 
-**Skills demonstrated:** AWS IoT Core, SQS, Lambda, DynamoDB, CloudWatch, SNS, Terraform, GitHub Actions, MQTT, mutual TLS, X.509, Python, automotive fault codes (OBD-II), AI API integration, infrastructure as code, CI/CD, fleet-scale architecture patterns.
+---
+
+## Systems Engineering
+
+Every architectural decision in this project maps to a systems engineering rationale — not just implementation choices.
+
+See [SYSTEMS_REQUIREMENTS.md](./SYSTEMS_REQUIREMENTS.md) for the full specification covering:
+
+- **SR-01** Message durability under burst traffic (SQS + DLQ)
+- **SR-02** Device identity verification (mutual TLS, UN R155)
+- **SR-03** Least privilege access control (scoped IAM policies)
+- **SR-04** Pipeline failure detection within 5 minutes (CloudWatch + SNS)
+- **SR-05** Network isolation and traffic control (private VPC, VPC Endpoints)
+- **SR-06** Infrastructure reproducibility (Terraform IaC + remote state)
+- **SR-07** AI diagnosis traceability (full audit trail in DynamoDB)
+
+Compliance alignment: UN R155 cybersecurity principles.
+
+---
+
+## Skills Demonstrated
+
+AWS IoT Core, SQS, Lambda, DynamoDB, CloudWatch, SNS, VPC, NAT Gateway, VPC Endpoints, Terraform, remote state, GitHub Actions, MQTT, mutual TLS, X.509, Python, automotive fault codes (OBD-II), AI API integration, infrastructure as code, CI/CD, fleet-scale architecture patterns, systems requirements, UN R155 alignment.
 
 ---
 
