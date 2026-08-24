@@ -55,6 +55,7 @@ flowchart TD
 | Cloud Messaging | AWS IoT Core + MQTT (port 8883) |
 | Device Security | Mutual TLS — X.509 certificates |
 | Message Buffer | Amazon SQS + Dead Letter Queue |
+| Network Security | AWS VPC — private subnets, NAT Gateway, VPC Endpoints |
 | Serverless Processing | AWS Lambda (Python 3.11) |
 | AI Fault Classification | Claude API / Mock mode |
 | Fault History Storage | AWS DynamoDB (on-demand) |
@@ -70,11 +71,13 @@ flowchart TD
 ✅ Phase 2 — AWS IoT Core receiving messages via MQTT/TLS  
 ✅ Phase 3 — SQS buffer with DLQ — fleet-scale resilience  
 ✅ Phase 4 — Lambda processing batches from SQS  
-✅ Phase 5 — DynamoDB storing 348+ fault records with AI diagnosis  
+✅ Phase 5 — DynamoDB storing 365+ fault records with AI diagnosis  
 ✅ Phase 6 — CloudWatch monitoring Lambda errors + DLQ depth  
 ✅ Phase 7 — AI classification layer (structured diagnosis active)  
-✅ Phase 8 — Terraform IaC — 13 resources managed as code  
-✅ Phase 9 — GitHub Actions CI/CD — auto-deploy on push (34s)  
+✅ Phase 8 — Terraform IaC — 15 resources managed as code  
+✅ Phase 9 — Lambda in private VPC subnet (eu-west-2a + eu-west-2b)  
+✅ Phase 10 — VPC Endpoints — DynamoDB + SQS traffic stays off NAT Gateway  
+✅ Phase 11 — GitHub Actions CI/CD — auto-deploy on push (43s)
 
 ---
 
@@ -89,6 +92,27 @@ SQS solves this at three levels:
 **Resilience** — if Lambda fails processing a message, SQS retries automatically up to 3 times. On the 4th failure, the message routes to the Dead Letter Queue for investigation rather than disappearing.
 
 **Observability** — a dedicated CloudWatch alarm on DLQ depth alerts immediately if messages are failing repeatedly — a distinctly fleet-aware signal beyond basic Lambda error monitoring.
+
+---
+
+## Why VPC Endpoints Instead of NAT Gateway for AWS Services
+
+Lambda runs inside a private VPC subnet with no direct internet access.
+Without VPC Endpoints, all traffic — including calls to DynamoDB and SQS —
+would route through the NAT Gateway to the public internet and back into AWS.
+
+Two VPC Endpoints solve this:
+
+**DynamoDB Gateway Endpoint (free)** — routes DynamoDB traffic directly
+through AWS's private network. No NAT Gateway charges, lower latency,
+traffic never touches the public internet.
+
+**SQS Interface Endpoint (~$7/month)** — creates a private IP inside the
+VPC for SQS. Queue traffic stays entirely within AWS's network.
+
+NAT Gateway now handles only what genuinely needs internet access —
+the Claude API calls. This is the production-correct architecture:
+pay for internet access only when you actually need it.
 
 ---
 
