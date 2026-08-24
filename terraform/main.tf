@@ -7,10 +7,14 @@ terraform {
     }
   }
   required_version = ">= 1.0"
-}
 
-provider "aws" {
-  region = var.aws_region
+  backend "s3" {
+    bucket         = "ecu-diagnostics-tfstate-831635639269"
+    key            = "p1/terraform.tfstate"
+    region         = "eu-west-2"
+    dynamodb_table = "terraform-state-lock"
+    encrypt        = true
+  }
 }
 
 # ── DYNAMODB TABLE ──
